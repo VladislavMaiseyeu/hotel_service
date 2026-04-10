@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.util.Set;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -27,5 +29,7 @@ public class CreateHotelRequest {
 
     @NotNull
     private ArrivalTimeDTO arrivalTime;
+
+    private Set<String> amenities;
 
 }

@@ -6,6 +6,7 @@ import com.example.hotel_service.model.dto.response.HotelDetailsDTO;
 import com.example.hotel_service.model.dto.response.HotelShortDTO;
 import com.example.hotel_service.model.entity.*;
 import com.example.hotel_service.model.exception.BadRequestException;
+import com.example.hotel_service.model.exception.HotelAlreadyExistsException;
 import com.example.hotel_service.model.exception.NotFoundException;
 import com.example.hotel_service.repository.AmenityRepository;
 import com.example.hotel_service.repository.HotelRepository;
@@ -16,10 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -41,7 +39,7 @@ public class HotelServiceImpl implements HotelService {
 
     @Override
     public HotelDetailsDTO getHotelById(Long id) {
-        Hotel hotel = hotelRepository.findById(id)
+        Hotel hotel = hotelRepository.findByIdWithAmenities(id)
                 .orElseThrow(() -> new NotFoundException("Hotel not found with id: " + id));
 
         return hotelMapper.toDetailsDto(hotel);
@@ -67,6 +65,34 @@ public class HotelServiceImpl implements HotelService {
     @Override
     @Transactional
     public HotelShortDTO createHotel(CreateHotelRequest request) {
+        boolean exists = hotelRepository
+                .existsByNameIgnoreCaseAndAddress_HouseNumberAndAddress_StreetIgnoreCaseAndAddress_CityIgnoreCaseAndAddress_PostCode(
+                        request.getName(),
+                        request.getAddress().getHouseNumber(),
+                        request.getAddress().getStreet(),
+                        request.getAddress().getCity(),
+                        request.getAddress().getPostCode()
+                );
+
+        if (exists) {
+            throw new HotelAlreadyExistsException("Hotel with the same name and address already exists");
+        }
+
+        Set<Amenity> amenities = new HashSet<>();
+
+        if (request.getAmenities() != null && !request.getAmenities().isEmpty()) {
+            amenities = request.getAmenities().stream()
+                    .map(String::trim)
+                    .filter(name -> !name.isBlank())
+                    .map(name -> amenityRepository.findByNameIgnoreCase(name)
+                            .orElseGet(() -> amenityRepository.save(
+                                    Amenity.builder()
+                                            .name(name)
+                                            .build()
+                            )))
+                    .collect(Collectors.toSet());
+        }
+
         Hotel hotel = Hotel.builder()
                 .name(request.getName())
                 .description(request.getDescription())
@@ -86,6 +112,7 @@ public class HotelServiceImpl implements HotelService {
                         .checkIn(request.getArrivalTime().getCheckIn())
                         .checkOut(request.getArrivalTime().getCheckOut())
                         .build())
+                .amenities(amenities)
                 .build();
 
         Hotel saved = hotelRepository.save(hotel);

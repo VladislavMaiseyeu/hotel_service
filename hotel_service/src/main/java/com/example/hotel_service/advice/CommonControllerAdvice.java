@@ -1,6 +1,7 @@
 package com.example.hotel_service.advice;
 
 import com.example.hotel_service.model.exception.BadRequestException;
+import com.example.hotel_service.model.exception.HotelAlreadyExistsException;
 import com.example.hotel_service.model.exception.NotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.FieldError;
@@ -25,6 +26,12 @@ public class CommonControllerAdvice {
     @ExceptionHandler(BadRequestException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleBadRequest(BadRequestException ex) {
+        return Map.of("error", ex.getMessage());
+    }
+
+    @ExceptionHandler(HotelAlreadyExistsException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleHotelAlreadyExistsException(HotelAlreadyExistsException ex) {
         return Map.of("error", ex.getMessage());
     }
 
